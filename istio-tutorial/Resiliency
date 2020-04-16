@@ -1,0 +1,41 @@
+
+# Load it up
+
+siege -r 10 -c 4 -v $GATEWAY_URL/customer
+
+# Make the recommendation v2 pod misbehave 
+
+kubectl exec -it -n tutorial $(kubectl get pods -n tutorial|grep recommendation-v2|awk '{ print $1 }'|head -1) -c recommendation /bin/bash
+
+curl localhost:8080/misbehave
+
+exit
+
+# tail recommendation v2 logs
+kubectl logs -f deployment/recommendation-v2 --all-containers=true --since=10m
+
+# Load test it
+siege -r 10 -c 4 -v $GATEWAY_URL/customer
+
+# Add the circuit breaker
+
+kubectl create -f istiofiles/destination-rule-recommendation_cb_policy_version_v2.yml -n tutorial
+
+# Run a load test and see that no requests are sent once the circuit breaker opens
+
+siege -r 10 -c 4 -v $GATEWAY_URL/customer
+
+kubectl logs recommendation-v2-2815683430-vpx4p -c recommendation -n tutorial
+
+# Fix the misbehaving pod 
+
+kubectl exec -it -n tutorial $(kubectl get pods -n tutorial|grep recommendation-v2|awk '{ print $1 }'|head -1) -c recommendation /bin/bash
+
+curl localhost:8080/behave
+
+exit
+
+# Check the output - it will take 2-3 mins for the open circuit to close again. 
+# You should see output from v2 in a few mins
+
+./scripts/run.sh $GATEWAY_URL/customer

@@ -1,0 +1,12 @@
+./scripts/clean.sh tutorial
+
+# Inject 503’s, for approximately 50% of the requests
+kubectl create -f istiofiles/destination-rule-recommendation.yml -n tutorial
+kubectl create -f istiofiles/virtual-service-recommendation-503.yml -n tutorial
+
+# Cleanup
+kubectl delete -f istiofiles/virtual-service-recommendation-503.yml -n tutorial
+
+# Delays
+kubectl create -f istiofiles/virtual-service-recommendation-delay.yml -n tutorial
+kubectl replace -f istiofiles/destination-rule-recommendation.yml -n tutorial
